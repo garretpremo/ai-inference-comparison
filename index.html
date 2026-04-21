@@ -64,6 +64,7 @@ const CATEGORIES = {
   professional: { label: 'Professional GPU', color: '#f59e0b' },
   datacenter:   { label: 'Datacenter GPU',   color: '#6366f1' },
   apple:        { label: 'Apple Silicon',    color: '#ec4899' },
+  specialized:  { label: 'Specialized Chip', color: '#06b6d4' },
 };
 
 const DIMENSIONS = {
@@ -100,6 +101,10 @@ const SYSTEMS = [
   { name: 'M3 Ultra 192GB',    cat: 'apple',        capacity: 192,   bandwidth: 819,   toks: 16,    cost: 5600,   power: 75   },
   { name: 'M5 Ultra (est.)',   cat: 'apple',        capacity: 256,   bandwidth: 1100,  toks: 22,    cost: 5000,   power: 85   },
 
+  // Specialized (hidden by default)
+  { name: 'Cerebras WSE-3',    cat: 'specialized',  capacity: 44,    bandwidth: 21000000, toks: 2100, cost: 2500000, power: 23000 },
+  { name: 'Groq LPU (70B)',    cat: 'specialized',  capacity: 35,    bandwidth: 80000,    toks: 300,  cost: 1500000, power: 10000 },
+  { name: 'Tenstorrent QB2',   cat: 'specialized',  capacity: 96,    bandwidth: 800,      toks: 30,   cost: 10000,   power: 300  },
 ];
 
 // Compute derived fields
@@ -108,7 +113,7 @@ SYSTEMS.forEach(s => {
 });
 
 // State
-let hiddenCategories = new Set();
+let hiddenCategories = new Set(['specialized']);
 let chart = null;
 
 // DOM
@@ -134,7 +139,7 @@ bSelect.value = 'capacity';
 // Build legend
 Object.entries(CATEGORIES).forEach(([key, cat]) => {
   const item = document.createElement('div');
-  item.className = 'legend-item';
+  item.className = 'legend-item' + (hiddenCategories.has(key) ? ' hidden' : '');
   item.dataset.cat = key;
   item.innerHTML = `<span class="legend-dot" style="background:${cat.color}"></span>${cat.label}`;
   item.addEventListener('click', () => {
