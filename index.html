@@ -77,28 +77,42 @@ const DIMENSIONS = {
 };
 
 const SYSTEMS = [
-  // Consumer GPUs
-  { name: 'RTX 3080 Ti',       cat: 'consumer',     capacity: 12,    bandwidth: 912,   toks: null,  cost: 500,    power: 200  },
-  { name: 'RTX 3090',          cat: 'consumer',     capacity: 24,    bandwidth: 936,   toks: null,  cost: 600,    power: 200  },
-  { name: '2x 3090 NVLink',    cat: 'consumer',     capacity: 48,    bandwidth: 1400,  toks: 17,    cost: 1250,   power: 350  },
-  { name: 'RTX 4090',          cat: 'consumer',     capacity: 24,    bandwidth: 1008,  toks: null,  cost: 1300,   power: 220  },
-  { name: 'RTX 5090',          cat: 'consumer',     capacity: 32,    bandwidth: 1792,  toks: null,  cost: 2000,   power: 250  },
+  // Consumer GPUs (used market prices, April 2026)
+  { name: 'RTX 3060 12GB',     cat: 'consumer',     capacity: 12,    bandwidth: 360,   toks: null,  cost: 275,    power: 170  },
+  { name: 'RTX 3080 Ti',       cat: 'consumer',     capacity: 12,    bandwidth: 912,   toks: null,  cost: 450,    power: 350  },
+  { name: 'RTX 3090',          cat: 'consumer',     capacity: 24,    bandwidth: 936,   toks: null,  cost: 750,    power: 350  },
+  { name: 'RTX 3090 Ti',       cat: 'consumer',     capacity: 24,    bandwidth: 1008,  toks: null,  cost: 950,    power: 450  },
+  { name: '2x 3090 NVLink',    cat: 'consumer',     capacity: 48,    bandwidth: 1400,  toks: 17,    cost: 1560,   power: 700  },
+  { name: 'RTX 4060 Ti 16GB',  cat: 'consumer',     capacity: 16,    bandwidth: 288,   toks: null,  cost: 450,    power: 165  },
+  { name: 'RTX 4070 Ti Super', cat: 'consumer',     capacity: 16,    bandwidth: 672,   toks: null,  cost: 750,    power: 285  },
+  { name: 'RTX 4080 Super',    cat: 'consumer',     capacity: 16,    bandwidth: 736,   toks: null,  cost: 1000,   power: 320  },
+  { name: 'RTX 4090',          cat: 'consumer',     capacity: 24,    bandwidth: 1008,  toks: null,  cost: 2100,   power: 450  },
+  { name: 'RTX 5070 Ti',       cat: 'consumer',     capacity: 16,    bandwidth: 896,   toks: null,  cost: 900,    power: 300  },
+  { name: 'RTX 5080',          cat: 'consumer',     capacity: 16,    bandwidth: 960,   toks: null,  cost: 1250,   power: 360  },
+  { name: 'RTX 5090',          cat: 'consumer',     capacity: 32,    bandwidth: 1792,  toks: null,  cost: 2850,   power: 575  },
 
   // Professional GPUs
-  { name: 'RTX A6000',         cat: 'professional', capacity: 48,    bandwidth: 768,   toks: 13,    cost: 2000,   power: 200  },
-  { name: 'RTX PRO 6000',      cat: 'professional', capacity: 96,    bandwidth: 1792,  toks: 30,    cost: 7000,   power: 300  },
+  { name: 'RTX A6000',         cat: 'professional', capacity: 48,    bandwidth: 768,   toks: 13,    cost: 4750,   power: 300  },
+  { name: 'L40S',              cat: 'professional', capacity: 48,    bandwidth: 864,   toks: null,  cost: 9500,   power: 350  },
+  { name: 'RTX PRO 6000',      cat: 'professional', capacity: 96,    bandwidth: 1792,  toks: 30,    cost: 9200,   power: 600  },
 
   // Datacenter GPUs
-  { name: 'A100 40GB',         cat: 'datacenter',   capacity: 40,    bandwidth: 1555,  toks: 18,    cost: 2500,   power: 200  },
-  { name: 'A100 80GB',         cat: 'datacenter',   capacity: 80,    bandwidth: 2039,  toks: 22,    cost: 5000,   power: 230  },
-  { name: 'H100 80GB',         cat: 'datacenter',   capacity: 80,    bandwidth: 3350,  toks: 40,    cost: 30000,  power: 350  },
-  { name: 'H200 141GB',        cat: 'datacenter',   capacity: 141,   bandwidth: 4800,  toks: 55,    cost: 33000,  power: 400  },
-  { name: 'MI300X',            cat: 'datacenter',   capacity: 192,   bandwidth: 5325,  toks: 60,    cost: 12000,  power: 500  },
-  { name: 'MI325X',            cat: 'datacenter',   capacity: 256,   bandwidth: 6000,  toks: 65,    cost: 18000,  power: 600  },
+  { name: 'A100 40GB (SXM)',   cat: 'datacenter',   capacity: 40,    bandwidth: 1555,  toks: 18,    cost: 2750,   power: 400  },
+  { name: 'A100 80GB (PCIe)',  cat: 'datacenter',   capacity: 80,    bandwidth: 1935,  toks: 22,    cost: 8000,   power: 300  },
+  { name: 'A100 80GB (SXM)',   cat: 'datacenter',   capacity: 80,    bandwidth: 2039,  toks: 25,    cost: 9750,   power: 400  },
+  { name: 'H100 PCIe',         cat: 'datacenter',   capacity: 80,    bandwidth: 2000,  toks: 35,    cost: 27500,  power: 350  },
+  { name: 'H100 SXM5',         cat: 'datacenter',   capacity: 80,    bandwidth: 3350,  toks: 40,    cost: 35000,  power: 700  },
+  { name: 'H200 141GB',        cat: 'datacenter',   capacity: 141,   bandwidth: 4800,  toks: 55,    cost: 35000,  power: 700  },
+  { name: 'MI300X',            cat: 'datacenter',   capacity: 192,   bandwidth: 5325,  toks: 60,    cost: 18000,  power: 750  },
+  { name: 'MI325X',            cat: 'datacenter',   capacity: 256,   bandwidth: 6000,  toks: 65,    cost: 20000,  power: 1000 },
+  { name: 'L4',                cat: 'datacenter',   capacity: 24,    bandwidth: 300,   toks: null,  cost: 3000,   power: 72   },
+  { name: 'L40',               cat: 'datacenter',   capacity: 48,    bandwidth: 864,   toks: null,  cost: 8000,   power: 300  },
+  { name: 'B100',              cat: 'datacenter',   capacity: 192,   bandwidth: 8000,  toks: 95,    cost: 40000,  power: 700  },
+  { name: 'B200',              cat: 'datacenter',   capacity: 192,   bandwidth: 8000,  toks: 110,   cost: 45000,  power: 1000 },
 
-  // Apple Silicon
-  { name: 'M4 Max 128GB',      cat: 'apple',        capacity: 128,   bandwidth: 546,   toks: 12,    cost: 3950,   power: 75   },
-  { name: 'M3 Ultra 192GB',    cat: 'apple',        capacity: 192,   bandwidth: 819,   toks: 16,    cost: 5600,   power: 75   },
+  // Apple Silicon (new prices, configured systems)
+  { name: 'M4 Max 128GB',      cat: 'apple',        capacity: 128,   bandwidth: 546,   toks: 12,    cost: 3699,   power: 75   },
+  { name: 'M3 Ultra 256GB',    cat: 'apple',        capacity: 256,   bandwidth: 819,   toks: 16,    cost: 5999,   power: 75   },
   { name: 'M5 Ultra (est.)',   cat: 'apple',        capacity: 256,   bandwidth: 1100,  toks: 22,    cost: 5000,   power: 85   },
 
   // Specialized (hidden by default)
