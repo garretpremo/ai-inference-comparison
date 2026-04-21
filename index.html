@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPU Comparison for LLM Inference</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; }
+  .controls { display: flex; gap: 24px; padding: 20px 32px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #2a2d35; }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+  select { background: #1a1d27; color: #e0e0e0; border: 1px solid #3a3d45; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; min-width: 180px; }
+  select:hover { border-color: #5a5d65; }
+  .toggle-group { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .slider { position: absolute; inset: 0; background: #3a3d45; border-radius: 11px; transition: 0.2s; }
+  .toggle .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #e0e0e0; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .slider { background: #6366f1; }
+  .toggle input:checked + .slider:before { transform: translateX(18px); }
+  .toggle-label { font-size: 13px; color: #888; }
+  .chart-container { padding: 16px 32px 32px; height: calc(100vh - 90px); }
+  canvas { background: #13151d; border-radius: 8px; }
+  h1 { font-size: 18px; font-weight: 600; color: #e0e0e0; white-space: nowrap; }
+  .legend { display: flex; gap: 16px; padding: 0 32px 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; cursor: pointer; user-select: none; }
+  .legend-item.hidden { opacity: 0.3; text-decoration: line-through; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>GPU Comparison for LLM Inference</h1>
+  <div class="control-group">
+    <label>X Axis</label>
+    <select id="x-axis"></select>
+  </div>
+  <div class="control-group">
+    <label>Y Axis</label>
+    <select id="y-axis"></select>
+  </div>
+  <div class="control-group">
+    <label>Bubble Size</label>
+    <select id="bubble-size"></select>
+  </div>
+  <div class="toggle-group">
+    <label class="toggle"><input type="checkbox" id="log-toggle"><span class="slider"></span></label>
+    <span class="toggle-label">Log scale</span>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="chart-container">
+  <canvas id="chart"></canvas>
+</div>
+
+<script>
+const CATEGORIES = {
+  consumer:     { label: 'Consumer GPU',     color: '#22c55e' },
+  professional: { label: 'Professional GPU', color: '#f59e0b' },
+  datacenter:   { label: 'Datacenter GPU',   color: '#6366f1' },
+  apple:        { label: 'Apple Silicon',    color: '#ec4899' },
+};
+
+const DIMENSIONS = {
+  capacity:     { label: 'Memory Capacity (GB)',         unit: 'GB' },
+  bandwidth:    { label: 'Memory Bandwidth (GB/s)',      unit: 'GB/s' },
+  toks:         { label: 'Tokens/sec (70B Q4)',          unit: 'tok/s' },
+  cost:         { label: 'Cost ($)',                     unit: '$' },
+  cost_per_gb:  { label: 'Cost per GB ($/GB)',           unit: '$/GB' },
+  power:        { label: 'Power Draw (W)',               unit: 'W' },
+};
+
+const SYSTEMS = [
+  // Consumer GPUs
+  { name: 'RTX 3080 Ti',       cat: 'consumer',     capacity: 12,    bandwidth: 912,   toks: null,  cost: 500,    power: 200  },
+  { name: 'RTX 3090',          cat: 'consumer',     capacity: 24,    bandwidth: 936,   toks: null,  cost: 600,    power: 200  },
+  { name: '2x 3090 NVLink',    cat: 'consumer',     capacity: 48,    bandwidth: 1400,  toks: 17,    cost: 1250,   power: 350  },
+  { name: 'RTX 4090',          cat: 'consumer',     capacity: 24,    bandwidth: 1008,  toks: null,  cost: 1300,   power: 220  },
+  { name: 'RTX 5090',          cat: 'consumer',     capacity: 32,    bandwidth: 1792,  toks: null,  cost: 2000,   power: 250  },
+
+  // Professional GPUs
+  { name: 'RTX A6000',         cat: 'professional', capacity: 48,    bandwidth: 768,   toks: 13,    cost: 2000,   power: 200  },
+  { name: 'RTX PRO 6000',      cat: 'professional', capacity: 96,    bandwidth: 1792,  toks: 30,    cost: 7000,   power: 300  },
+
+  // Datacenter GPUs
+  { name: 'A100 40GB',         cat: 'datacenter',   capacity: 40,    bandwidth: 1555,  toks: 18,    cost: 2500,   power: 200  },
+  { name: 'A100 80GB',         cat: 'datacenter',   capacity: 80,    bandwidth: 2039,  toks: 22,    cost: 5000,   power: 230  },
+  { name: 'H100 80GB',         cat: 'datacenter',   capacity: 80,    bandwidth: 3350,  toks: 40,    cost: 30000,  power: 350  },
+  { name: 'H200 141GB',        cat: 'datacenter',   capacity: 141,   bandwidth: 4800,  toks: 55,    cost: 33000,  power: 400  },
+  { name: 'MI300X',            cat: 'datacenter',   capacity: 192,   bandwidth: 5325,  toks: 60,    cost: 12000,  power: 500  },
+  { name: 'MI325X',            cat: 'datacenter',   capacity: 256,   bandwidth: 6000,  toks: 65,    cost: 18000,  power: 600  },
+
+  // Apple Silicon
+  { name: 'M4 Max 128GB',      cat: 'apple',        capacity: 128,   bandwidth: 546,   toks: 12,    cost: 3950,   power: 75   },
+  { name: 'M3 Ultra 192GB',    cat: 'apple',        capacity: 192,   bandwidth: 819,   toks: 16,    cost: 5600,   power: 75   },
+  { name: 'M5 Ultra (est.)',   cat: 'apple',        capacity: 256,   bandwidth: 1100,  toks: 22,    cost: 5000,   power: 85   },
+
+];
+
+// Compute derived fields
+SYSTEMS.forEach(s => {
+  s.cost_per_gb = s.cost / s.capacity;
+});
+
+// State
+let hiddenCategories = new Set();
+let chart = null;
+
+// DOM
+const xSelect = document.getElementById('x-axis');
+const ySelect = document.getElementById('y-axis');
+const bSelect = document.getElementById('bubble-size');
+const logToggle = document.getElementById('log-toggle');
+const legendEl = document.getElementById('legend');
+
+// Populate dropdowns
+Object.entries(DIMENSIONS).forEach(([key, dim]) => {
+  [xSelect, ySelect, bSelect].forEach(sel => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = dim.label;
+    sel.appendChild(opt);
+  });
+});
+xSelect.value = 'bandwidth';
+ySelect.value = 'toks';
+bSelect.value = 'capacity';
+
+// Build legend
+Object.entries(CATEGORIES).forEach(([key, cat]) => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.dataset.cat = key;
+  item.innerHTML = `<span class="legend-dot" style="background:${cat.color}"></span>${cat.label}`;
+  item.addEventListener('click', () => {
+    if (hiddenCategories.has(key)) hiddenCategories.delete(key);
+    else hiddenCategories.add(key);
+    item.classList.toggle('hidden');
+    renderChart();
+  });
+  legendEl.appendChild(item);
+});
+
+function getVal(system, dim) {
+  return system[dim];
+}
+
+function formatVal(val, dim) {
+  if (val == null) return 'N/A';
+  const d = DIMENSIONS[dim];
+  if (d.unit === '$') {
+    if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return '$' + (val / 1000).toFixed(1) + 'K';
+    return '$' + val;
+  }
+  if (d.unit === '$/GB') return '$' + val.toFixed(0) + '/GB';
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M ' + d.unit;
+  if (val >= 10000) return (val / 1000).toFixed(1) + 'K ' + d.unit;
+  return val.toLocaleString() + ' ' + d.unit;
+}
+
+function renderChart() {
+  const xDim = xSelect.value;
+  const yDim = ySelect.value;
+  const bDim = bSelect.value;
+  const useLog = logToggle.checked;
+
+  // Filter systems that have values for both axes
+  const filtered = SYSTEMS.filter(s =>
+    !hiddenCategories.has(s.cat) &&
+    getVal(s, xDim) != null &&
+    getVal(s, yDim) != null
+  );
+
+  // Compute bubble scale
+  const bValues = filtered.map(s => getVal(s, bDim)).filter(v => v != null);
+  const bMax = Math.max(...bValues, 1);
+  const bMin = Math.min(...bValues, 0);
+
+  // Group by category
+  const datasets = Object.entries(CATEGORIES)
+    .filter(([key]) => !hiddenCategories.has(key))
+    .map(([key, cat]) => {
+      const points = filtered
+        .filter(s => s.cat === key)
+        .map(s => {
+          const bVal = getVal(s, bDim);
+          const bNorm = bVal != null ? (bVal - bMin) / (bMax - bMin || 1) : 0.3;
+          return {
+            x: getVal(s, xDim),
+            y: getVal(s, yDim),
+            r: 6 + bNorm * 30,
+            _system: s,
+          };
+        });
+      return {
+        label: cat.label,
+        data: points,
+        backgroundColor: cat.color + '88',
+        borderColor: cat.color,
+        borderWidth: 1.5,
+      };
+    })
+    .filter(ds => ds.data.length > 0);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'bubble',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: useLog ? 'logarithmic' : 'linear',
+          title: { display: true, text: DIMENSIONS[xDim].label, color: '#aaa', font: { size: 13 } },
+          grid: { color: '#2a2d35' },
+          ticks: {
+            color: '#888',
+            callback: function(val) {
+              if (useLog) {
+                if (val >= 1000000) return (val/1000000) + 'M';
+                if (val >= 1000) return (val/1000) + 'K';
+              }
+              return val.toLocaleString();
+            }
+          },
+        },
+        y: {
+          type: useLog ? 'logarithmic' : 'linear',
+          title: { display: true, text: DIMENSIONS[yDim].label, color: '#aaa', font: { size: 13 } },
+          grid: { color: '#2a2d35' },
+          ticks: {
+            color: '#888',
+            callback: function(val) {
+              if (useLog) {
+                if (val >= 1000000) return (val/1000000) + 'M';
+                if (val >= 1000) return (val/1000) + 'K';
+              }
+              return val.toLocaleString();
+            }
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27ee',
+          borderColor: '#3a3d45',
+          borderWidth: 1,
+          titleColor: '#fff',
+          bodyColor: '#ccc',
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            title: (items) => items[0]?.raw?._system?.name || '',
+            label: () => '',
+            afterBody: (items) => {
+              const s = items[0]?.raw?._system;
+              if (!s) return '';
+              return Object.entries(DIMENSIONS).map(([key, dim]) => {
+                return `${dim.label.split('(')[0].trim()}: ${formatVal(getVal(s, key), key)}`;
+              }).join('\n');
+            },
+          },
+        },
+      },
+    },
+    plugins: [{
+      id: 'labels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        chart.data.datasets.forEach((ds) => {
+          const meta = chart.getDatasetMeta(chart.data.datasets.indexOf(ds));
+          meta.data.forEach((point, i) => {
+            const s = ds.data[i]._system;
+            const r = point.options.radius || point.radius || 8;
+            ctx.fillStyle = ds.borderColor + 'cc';
+            ctx.fillText(s.name, point.x + r + 4, point.y);
+          });
+        });
+      }
+    }],
+  });
+}
+
+xSelect.addEventListener('change', renderChart);
+ySelect.addEventListener('change', renderChart);
+bSelect.addEventListener('change', renderChart);
+logToggle.addEventListener('change', renderChart);
+
+renderChart();
+</script>
+</body>
+</html>
